@@ -15,13 +15,13 @@ class MarkdownBuilder(Builder):
     format = 'markdown'
     epilog = __('The markdown files are in %(outdir)s.')
 
-    out_suffix = '.md'
+    out_suffix = '.mdx'
     allow_parallel = True
     default_translator_class = MarkdownTranslator
 
     current_docname = None
 
-    markdown_http_base = 'https://localhost'
+    markdown_http_base = '/docs'
 
     def init(self):
         self.secnumbers = {}
@@ -44,7 +44,7 @@ class MarkdownBuilder(Builder):
                 pass
 
     def get_target_uri(self, docname, typ=None):
-        return ''
+        return docname
 
     def prepare_writing(self, docnames):
         self.writer = MarkdownWriter(self)

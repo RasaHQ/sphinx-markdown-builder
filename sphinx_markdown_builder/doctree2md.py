@@ -161,6 +161,7 @@ https://github.com/cgwrench/rst2md
 
 from __future__ import unicode_literals
 
+import json
 import re
 from textwrap import dedent
 import posixpath
@@ -280,8 +281,6 @@ PREF_SUFF_ELEMENTS = {
 # Doctree elements explicitly passed through without extra markup
 PASS_THRU_ELEMENTS = (
     'document',
-    'container',
-    'target',
     'inline',
     'definition_list',
     'definition_list_item',
@@ -301,7 +300,7 @@ PASS_THRU_ELEMENTS = (
 @add_pref_suff(PREF_SUFF_ELEMENTS)
 class Translator(nodes.NodeVisitor):
 
-    std_indent = '    '
+    std_indent = '  '
 
     def __init__(self, document, builder=None):
         nodes.NodeVisitor.__init__(self, document)
@@ -309,11 +308,6 @@ class Translator(nodes.NodeVisitor):
         self.settings = settings = document.settings
         lcode = settings.language_code
         self.language = languages.get_language(lcode, document.reporter)
-        # Not-None here indicates Markdown should use HTTP for internal and
-        # download links.
-        self.markdown_http_base = (
-            builder.markdown_http_base if builder else None
-        )
         # Warn only once per writer about unsupported elements
         self._warned = set()
         # Lookup table to get section list from name
@@ -322,6 +316,12 @@ class Translator(nodes.NodeVisitor):
         self.reset()
         # Attribute shortcuts
         self.head, self.body, self.foot = self._lists.values()
+
+    @property
+    def markdown_http_base(self):
+        # Not-None here indicates Markdown should use HTTP for internal and
+        # download links.
+        return self.builder.markdown_http_base if self.builder else None
 
     def reset(self):
         """Initialize object for fresh read."""
@@ -443,7 +443,7 @@ class Translator(nodes.NodeVisitor):
 
     def visit_definition(self, node):
         self.add('\n\n')
-        self.start_level('    ')
+        self.start_level('  ')
 
     def depart_definition(self, node):
         self.finish_level()
@@ -493,7 +493,12 @@ class Translator(nodes.NodeVisitor):
         code_type = node['classes'][1] if 'code' in node['classes'] else ''
         if 'language' in node and node['language'] != "none":
             code_type = node['language'] if node['language'] != "default" else "python"
-        self.add('```' + code_type + '\n')
+        highlights = ""
+        if "highlight_args" in node:
+            j = node["highlight_args"]
+            if j.get("hl_lines"):
+                highlights = " {" + ",".join(str(l) for l in j["hl_lines"]) + "}"
+        self.add('```' + code_type + highlights + '\n')
 
     def depart_literal_block(self, node):
         self._escape_text = True
@@ -507,10 +512,10 @@ class Translator(nodes.NodeVisitor):
     depart_doctest_block = depart_literal_block
 
     def visit_block_quote(self, node):
-        self.start_level('  ')
+        pass # self.start_level('  ')
 
     def depart_block_quote(self, node):
-        self.finish_level()
+        pass # self.finish_level()
 
     def visit_section(self, node):
         self.section_level += 1
@@ -577,9 +582,7 @@ class Translator(nodes.NodeVisitor):
         url = node.get('refuri')
         if not node.get('internal'):
             return url
-        # If HTTP page build URL known, make link relative to that.
-        if not self.markdown_http_base:
-            return None
+
         this_doc = self.builder.current_docname
         if url in (None, ''):  # Reference to this doc
             url = self.builder.get_target_uri(this_doc)
@@ -590,6 +593,10 @@ class Translator(nodes.NodeVisitor):
         url = '{}/{}'.format(self.markdown_http_base, url)
         if 'refid' in node:
             url += '#' + node['refid']
+
+        target = url.split("#")[-1]
+        if url.endswith(target + "#" + target):
+            url = url[:-len(target) - 1]
         return url
 
     def visit_reference(self, node):
