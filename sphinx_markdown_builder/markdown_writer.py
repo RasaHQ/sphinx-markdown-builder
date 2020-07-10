@@ -370,7 +370,10 @@ class MarkdownTranslator(Translator):
     def visit_image(self, node):
         """Image directive."""
         uri = node.attributes['uri']
+        width = node.attributes.get("width", "")
+        alt = node.attributes.get("alt", "image")
         doc_folder = os.path.dirname(self.builder.current_docname)
+
         if uri.startswith(doc_folder):
             # drop docname prefix
             uri = self._normalize_relative_path("../" + uri)
@@ -379,7 +382,10 @@ class MarkdownTranslator(Translator):
             # drop old sphinx prefix, images moved to `static/img`
             uri = "../../img" + uri[len("_static/images"):]
 
-        self.add('\n\n![image](%s)\n\n' % uri)
+        if width:
+            width = f'width="{width}" '
+
+        self.add(f'\n\n<img alt="{alt}" src="{uri}" {width}/>\n\n')
 
     def depart_image(self, node):
         """Image directive."""
