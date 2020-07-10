@@ -263,6 +263,13 @@ class MarkdownTranslator(Translator):
         """Handle the .. glossary:: directive."""
         pass
 
+    def visit_definition_list_item(self, node):
+        """
+        Handle each item in the .. glossary:: directive
+        """
+        if node.parent.parent.tagname == "glossary":
+            self.add("## ")
+
     def visit_topic(self, node):
         """Handle the .. contents:: directive."""
         # don't think we need this, in rst this adds a table of contents, but we
